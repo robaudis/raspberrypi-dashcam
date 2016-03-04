@@ -13,6 +13,7 @@ def RecordVideo(dir):
         
         camera.start_recording(dir + '/%s.h264' % dt.datetime.now().strftime('%Y%m%dT%H%M%S'))
         start = dt.datetime.now()
+        
         while True:
             while (dt.datetime.now() - start).seconds < 10:
                 camera.annotate_text = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
