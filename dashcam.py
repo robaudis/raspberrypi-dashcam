@@ -2,22 +2,22 @@ import picamera
 import datetime as dt
 import os
 import time
-from multiprocessing import Process
+from multiprocessing import Process, Pipe
 
-def RecordVideo(dir):
+def RecordVideo(dir, gpspipe):
     with picamera.PiCamera() as camera:
         camera.resolution = (1280, 720)
         camera.framerate = 24
         camera.annotate_background = picamera.Color('black')
-        camera.annotate_text = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        camera.annotate_text = gpspipe.recv()
         
         camera.start_recording(dir + '/%s.h264' % dt.datetime.now().strftime('%Y%m%dT%H%M%S'))
         start = dt.datetime.now()
         
         while True:
             while (dt.datetime.now() - start).seconds < 10:
-                camera.annotate_text = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                camera.wait_recording(1)
+                camera.annotate_text = gpspipe.recv()
+                
             camera.split_recording(dir + '/%s.h264' % dt.datetime.now().strftime('%Y%m%dT%H%M%S'))
             start = dt.datetime.now()
             
@@ -35,7 +35,15 @@ def DeleteOldest(dir):
 def DirectorySize(dir, files):
     return sum(os.path.getsize(dir + f) for f in files)
     
+def GetGPSData(pipe):
+    while True:
+        time.sleep(1)
+        pipe.send(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        
 if __name__ == '__main__':
-    p = Process(target=DeleteOldest, args=('/dashcam-videos',))
-    p.start()
-    RecordVideo('/dashcam-videos')
+    pipe_a, pipe_b = Pipe()
+    delete = Process(target=DeleteOldest, args=('/dashcam-videos',))
+    getgps = Process(target=GetGPSData, args=(pipe_b,))
+    getgps.start()
+    delete.start()
+    RecordVideo('/dashcam-videos', pipe_a)
