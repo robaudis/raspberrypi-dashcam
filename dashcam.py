@@ -4,7 +4,7 @@ import os
 import time
 from multiprocessing import Process, Pipe
 
-def RecordVideo(dir, gpspipe):
+def RecordVideo(dir, length, gpspipe):
     with picamera.PiCamera() as camera:
         camera.resolution = (1280, 720)
         camera.framerate = 24
@@ -15,7 +15,7 @@ def RecordVideo(dir, gpspipe):
         start = dt.datetime.now()
         
         while True:
-            while (dt.datetime.now() - start).seconds < 10:
+            while (dt.datetime.now() - start).seconds < length:
                 camera.annotate_text = gpspipe.recv()
                 
             camera.split_recording(dir + '/%s.h264' % dt.datetime.now().strftime('%Y%m%dT%H%M%S'))
@@ -25,15 +25,16 @@ def RecordVideo(dir, gpspipe):
         
 def DeleteOldest(dir):
     while True:
-        time.sleep(5)
+        time.sleep(30)
         files = os.listdir(dir)
-        while DirectorySize(dir + '/', files) > 5242880:
+        while DirectorySize(dir + '/') > 10485760:#2097152000:
             if len(files) > 1:
                 files.sort()
                 os.remove(dir + '/' + files.pop(0))
+            time.sleep(30)
         
-def DirectorySize(dir, files):
-    return sum(os.path.getsize(dir + f) for f in files)
+def DirectorySize(dir):
+    return sum(os.path.getsize(dir + f) for f in os.listdir(dir))
     
 def GetGPSData(pipe):
     while True:
@@ -46,4 +47,4 @@ if __name__ == '__main__':
     getgps = Process(target=GetGPSData, args=(pipe_b,))
     getgps.start()
     delete.start()
-    RecordVideo('/dashcam-videos', pipe_a)
+    RecordVideo('/dashcam-videos', 10, pipe_a)
