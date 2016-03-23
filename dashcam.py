@@ -2,6 +2,7 @@ import picamera
 import datetime as dt
 import os
 import time
+import gps
 from multiprocessing import Process, Pipe
 
 def RecordVideo(dir, length, gpspipe):
@@ -37,9 +38,14 @@ def DirectorySize(dir):
     return sum(os.path.getsize(dir + f) for f in os.listdir(dir))
     
 def GetGPSData(pipe):
-    while True:
-        time.sleep(1)
-        pipe.send(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    session = gps.gps("localhost", "19000")
+    session.stream(gps.WATCH_ENABLE | gps.WATCH_NEWSTYLE)
+
+    for report in session:
+        if session.fix.mode > 2:
+            pipe.send('%.5f %.5f %.1fmph %s' % (session.fix.latitude, session.fix.longitude, session.fix.speed * 2.23694, session.fix.time))        
+        else:
+            pipe.send('No Fix')
         
 if __name__ == '__main__':
     pipe_a, pipe_b = Pipe()
