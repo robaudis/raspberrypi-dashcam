@@ -3,11 +3,12 @@ import datetime as dt
 import os
 import time
 import gps
-from multiprocessing import Process, Pipe, Value
-from ctypes import c_bool
+import socket
+from multiprocessing import Process, Pipe, Value, Array
+from ctypes import c_bool, c_char
 import RPi.GPIO as GPIO
 
-def RecordVideo(dir, length, gpspipe, haspower):
+def RecordVideo(dir, length, gpstext, haspower):
     with picamera.PiCamera() as camera:
         camera.resolution = (1280, 720)
         camera.vflip = True
@@ -15,14 +16,14 @@ def RecordVideo(dir, length, gpspipe, haspower):
         camera.framerate = 24
         camera.annotate_background = picamera.Color('black')
         camera.annotate_text_size = 24
-        camera.annotate_text = gpspipe.recv()
         
         camera.start_recording(dir + '/%s.h264' % dt.datetime.now().strftime('%Y%m%dT%H%M%S'))
         start = dt.datetime.now()
         
         while True:
             while (dt.datetime.now() - start).seconds < length and haspower.value:
-                camera.annotate_text = gpspipe.recv()
+                datetime_str = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                camera.annotate_text = 'WG07 HTA : %s : %s' % (gpstext.value, datetime_str)
                 
             if not haspower.value:
                 break
@@ -46,17 +47,32 @@ def DeleteOldest(dir):
 def DirectorySize(dir):
     return sum(os.path.getsize(dir + f) for f in os.listdir(dir))
     
-def GetGPSData(pipe):
-    session = gps.gps("localhost", "19000")
-    session.stream(gps.WATCH_ENABLE | gps.WATCH_NEWSTYLE)
+def GetGPSData(gpstext, haspower):
+    session = None
+    connected = False
     
-    reg = 'WG07 HTA'
-    for report in session:            
-        datetime_str = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        if session.fix.mode > 2:            
-            pipe.send('%s : lat %.5f, lon %.5f %.1fmph : %s' % (reg, session.fix.latitude, session.fix.longitude, session.fix.speed * 2.23694, datetime_str))        
-        else:
-            pipe.send('%s : %s : %s' % (reg, 'No GPS Fix', datetime_str))
+    while haspower.value:
+        while not connected:
+            try:
+                session = gps.gps("localhost", "19000")
+                connected = True
+            except socket.error:
+                print 'GPSD not available, trying again'
+                time.sleep(2)
+            
+        session.stream(gps.WATCH_ENABLE | gps.WATCH_NEWSTYLE)
+
+        for report in session:            
+            if session.fix.mode > 2:            
+                text = 'lat %.5f, lon %.5f %.1fmph' % (session.fix.latitude, session.fix.longitude, session.fix.speed * 2.23694)                
+                gpstext.value = text       
+            else:
+                gpstext.value = 'No GPS Fix'
+                
+        connected = False
+        gpstext.value = 'No GPS Fix'        
+        print 'GPSD connection lost - trying to reconnect'
+        time.sleep(2)
         
 def MonitorUPS(haspower):
     GPIO.setmode(GPIO.BCM) # Set pin numbering to board numbering
@@ -79,13 +95,14 @@ if __name__ == '__main__':
     haspower = Value(c_bool, True)
     ups = Process(target=MonitorUPS, args=(haspower,))
     ups.start()
-    
-    pipe_a, pipe_b = Pipe()    
+      
     delete = Process(target=DeleteOldest, args=('/dashcam-videos',))
-    getgps = Process(target=GetGPSData, args=(pipe_b,))
+    
+    gpstext = Array('c', 'No GPS Fix')
+    getgps = Process(target=GetGPSData, args=(gpstext, haspower))
     getgps.start()
     delete.start()
-    RecordVideo('/dashcam-videos', 120, pipe_a, haspower,)
+    RecordVideo('/dashcam-videos', 120, gpstext, haspower,)
     
     getgps.join()
     delete.join()
