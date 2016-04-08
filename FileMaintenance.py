@@ -15,7 +15,7 @@ class FileMaintenance(threading.Thread):
             if not self.running:
                 break
                 
-        while self.running and DirectorySize(self.dir + '/') > 2097152000:            
+        while self.running and DirectorySize(self.dir + '/') > 3145728000:            
             files = os.listdir(self.dir)
             files.sort()
             if len(files) > 1:               
