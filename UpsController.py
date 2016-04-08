@@ -19,10 +19,9 @@ class UpsController(threading.Thread):
         time.sleep(0.25) # Allow a sleep time of 0.25 second to reduce CPU usage
         GPIO.output(22,False)
         if(GPIO.input(27)==0): # Setup an if loop to run a shutdown command when button press sensed
-            self.haspower = False
-            time.sleep(5)
-            os.system("sudo shutdown -h now") # Send shutdown command to os
+            self.haspower = False            
             break
 
         time.sleep(0.25) # Allow a sleep time of 0.25 second to reduce CPU usage
+    GPIO.cleanup()
         

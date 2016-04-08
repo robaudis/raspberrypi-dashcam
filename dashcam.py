@@ -1,7 +1,9 @@
 import picamera
 import datetime as dt
 import time
-
+import os
+from multiprocessing import Process, Value
+from ctypes import c_bool
 import GpsController as gps
 import UpsController as ups
 import FileMaintenance as file
@@ -31,6 +33,25 @@ def RecordVideo(dir, length, gpsc, upsc):
             
         camera.stop_recording()        
         
+def StopThreads(gpsc, upsc, delete_running):
+    print 'Setting threads to stop...'
+    print 'gps'
+    gpsc.running = False
+    print 'file'
+    delete_running.value = False
+    print 'ups'
+    upsc.running = False
+    
+    print 'waiting for threads to stop...'
+        
+    gpsc.join()
+    print 'gps stopped'
+    delete.join()
+    print 'file stopped'
+    upsc.join()
+    print 'ups stopped'
+    print 'Threads stopped. Exited'
+        
 if __name__ == '__main__':
     try:
         upsc = ups.UpsController()
@@ -39,25 +60,15 @@ if __name__ == '__main__':
         gpsc = gps.GpsController()
         gpsc.start()
         
-        delete = file.FileMaintenance('/dashcam-videos')
+        delete_running = Value(c_bool, True)
+        delete = Process(target=file.DeleteOldest, args=('/dashcam-videos', delete_running,))
         delete.start()
         
         RecordVideo('/dashcam-videos', 120, gpsc, upsc)
+        
+        StopThreads(gpsc, upsc, delete_running)
+        time.sleep(5)
+        os.system("sudo shutdown -h now") # Send shutdown command to os
     except (KeyboardInterrupt, SystemExit): #when you press ctrl+c
-        print 'Setting threads to stop...'
-        print 'gps'
-        gpsc.running = False
-        print 'file'
-        delete.running = False
-        print 'ups'
-        upsc.running = False
-        
-        print 'waiting for threads to stop...'
-        
-        gpsc.join()
-        print 'gps stopped'
-        delete.join()
-        print 'file stopped'
-        upsc.join()
-        print 'ups stopped'
-        print 'Threads stopped. Exited'
+        StopThreads(gpsc, upsc, delete_running)
+

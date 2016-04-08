@@ -2,24 +2,18 @@ import time
 import os
 import threading
 
-class FileMaintenance(threading.Thread):
-  def __init__(self, dir):
-    threading.Thread.__init__(self)
-    self.running = True 
-    self.dir = dir
-
-  def run(self):
-    while self.running:
+def DeleteOldest(dir, keep_running):
+    while keep_running.value:
         for i in range(59):
             time.sleep(1)
-            if not self.running:
+            if not keep_running.value:
                 break
                 
-        while self.running and DirectorySize(self.dir + '/') > 4194304000:            
-            files = os.listdir(self.dir)
+        while keep_running.value and DirectorySize(dir + '/') > 4194304000:            
+            files = os.listdir(dir)
             files.sort()
             if len(files) > 1:               
-                os.remove(self.dir + '/' + files.pop(0))
+                os.remove(dir + '/' + files.pop(0))
             time.sleep(5)
         
 def DirectorySize(dir):
