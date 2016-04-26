@@ -9,7 +9,7 @@ def DeleteOldest(dir, keep_running):
             if not keep_running.value:
                 break
                 
-        while keep_running.value and DirectorySize(dir + '/') > 4194304000:            
+        while keep_running.value and DirectorySize(dir + '/') > 3194304000:            
             files = os.listdir(dir)
             files.sort()
             if len(files) > 1:               

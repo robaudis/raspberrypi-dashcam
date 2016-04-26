@@ -24,6 +24,7 @@ def RecordVideo(dir, length, gpsc, upsc):
             while (dt.datetime.now() - start).seconds < length and upsc.haspower:
                 datetime_str = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 camera.annotate_text = 'WG07 HTA : %s : %s' % (gpsc.gpsstring, datetime_str)
+                time.sleep(0.25)
                 
             if not upsc.haspower:
                 break
