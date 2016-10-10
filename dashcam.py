@@ -62,10 +62,10 @@ if __name__ == '__main__':
         gpsc.start()
         
         delete_running = Value(c_bool, True)
-        delete = Process(target=file.DeleteOldest, args=('/dashcam-videos', delete_running,))
+        delete = Process(target=file.DeleteOldest, args=('/home/pi/dashcamvideo', delete_running,))
         delete.start()
         
-        RecordVideo('/dashcam-videos', 120, gpsc, upsc)
+        RecordVideo('/home/pi/dashcamvideo', 120, gpsc, upsc)
         
         StopThreads(gpsc, upsc, delete_running)
         time.sleep(5)
