@@ -14,6 +14,7 @@ def RecordVideo(dir, length, gpsc, upsc):
         camera.vflip = True
         camera.hflip = True
         camera.framerate = 24
+	camera.exposure_mode = 'night'
         camera.annotate_background = picamera.Color('black')
         camera.annotate_text_size = 24
         
